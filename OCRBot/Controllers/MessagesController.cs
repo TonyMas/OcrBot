@@ -58,7 +58,11 @@ namespace OCRBot
         {
             int attachCount = message.Attachments.Count;
 
+#if EMULATOR
+            var connector = new ConnectorClient(new Uri("http://localhost:9000"), new ConnectorClientCredentials());
+#else
             var connector = new ConnectorClient();
+#endif
 
             var i = 1;
             foreach (Attachment a in message.Attachments)

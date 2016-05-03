@@ -56,8 +56,6 @@ namespace OCRBot
         {
             messageSender.SendMessage($"Begin recognition of image **{attachName}**");
 
-            return;
-
             RestServiceClient restClient = new RestServiceClient();
             restClient.Proxy.Credentials = CredentialCache.DefaultCredentials;
 
@@ -75,6 +73,7 @@ namespace OCRBot
             task = waitForTask(restClient, task);
 
             messageSender.SendMessage($"Image **{attachName}** recognition completed");
+            messageSender.SendMessage($"{task.PagesCount} recognition pages used");
 
             for (int i = 0; i < settings.OutputFormats.Count; i++)
             {

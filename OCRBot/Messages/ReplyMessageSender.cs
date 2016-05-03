@@ -1,12 +1,17 @@
 ﻿using Microsoft.Bot.Connector;
+using System;
 
 namespace OCRBot
 {
     public class ReplyMessageSender
     {
-        public ReplyMessageSender(ConnectorClient _connector, Message _replyTo)
+        public ReplyMessageSender(Message _replyTo)
         {
-            connector = _connector;
+#if EMULATOR
+            connector = new ConnectorClient(new Uri("http://localhost:9000"), new ConnectorClientCredentials());
+#else
+            connector = new ConnectorClient();
+#endif
             replyTo = _replyTo;
         }
 

@@ -18,32 +18,80 @@ namespace OCRBot
             if (message.Type == "Message")
             {
                 int attachCount = message.Attachments.Count;
-
-                if( attachCount == 0)
+                if (attachCount != 0)
                 {
-                    return message.CreateReplyMessage($"*Send me some image files to begin recognition*");
+                    ProcessAttachaments(message);
                 }
 
-                System.Threading.Timer timer = null;
-                timer = new System.Threading.Timer((obj) =>
+                if (message.Text.Equals( "Settings", StringComparison.InvariantCultureIgnoreCase ) )
                 {
-#if EMULATOR
-                    var connector = new ConnectorClient(new Uri("http://localhost:9000"), new ConnectorClientCredentials());
-#else
-                    var connector = new ConnectorClient();
-#endif
-                    var messageSender = new ReplyMessageSender(connector, message);
-                    var recognizer = new Recognizer(messageSender);
-                    recognizer.RecognizeAttachments(message.Attachments);
-                    timer.Dispose();
-                }, null, 1, System.Threading.Timeout.Infinite);
-
-                return message.CreateReplyMessage($"Your files will be processed shortly");
+                    return talkAboutSettings(message);
+                }
+                else if( message.Text.Equals("Info", StringComparison.InvariantCultureIgnoreCase) )
+                {
+                    return showUserInfo(message);
+                }
+                else if (message.Text.Equals("Help", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return showHelpMessage(message,false);
+                }
+                else
+                {
+                    Message promoReply = tryProcessPromo(message);
+                    if( promoReply.Text.Length > 0 )
+                    {
+                        return promoReply;
+                    }
+                    if( message.Text.Length > 0)
+                    {
+                        return showHelpMessage(message, true);
+                    }
+                    return null;
+                }
             }
             else
             {
                 return HandleSystemMessage(message);
             }
+        }
+
+        private Message showHelpMessage(Message message, bool replyToUnknown)
+        {
+            string unknownText = $"Sorry, I cannot understand you.";
+            string helpText = $"I am simple OCR bot. Your can send me image files and I send back recognition results. Type **Settings** to view and change current recognition settings. Type **Info** to see how many pages for recognition your have. Type **Help** to see this message again.";
+
+            if(replyToUnknown)
+            {
+                return message.CreateReplyMessage(unknownText + $"\r\n" + helpText);
+            }
+            return message.CreateReplyMessage(helpText);
+        }
+
+        private Message tryProcessPromo(Message message)
+        {
+            return message.CreateReplyMessage(); ;
+        }
+
+        private Message showUserInfo(Message message)
+        {
+            return message.CreateReplyMessage($"User info will be here");
+        }
+
+        private Message talkAboutSettings(Message message)
+        {
+            return message.CreateReplyMessage($"Recognition settings will be here");
+        }
+
+        private void ProcessAttachaments(Message message)
+        {
+            System.Threading.Timer timer = null;
+            timer = new System.Threading.Timer((obj) =>
+            {
+                var messageSender = new ReplyMessageSender(message);
+                var recognizer = new Recognizer(messageSender);
+                recognizer.RecognizeAttachments(message.Attachments);
+                timer.Dispose();
+            }, null, 1, System.Threading.Timeout.Infinite);
         }
 
         private Message HandleSystemMessage(Message message)
@@ -61,11 +109,10 @@ namespace OCRBot
             }
             else if (message.Type == "BotAddedToConversation")
             {
-                return message.CreateReplyMessage($"Hello! I am OCR Bot, send me some document images.");
+                return showHelpMessage(message, false);
             }
             else if (message.Type == "BotRemovedFromConversation")
             {
-                return message.CreateReplyMessage($"Bye!");
             }
             else if (message.Type == "UserAddedToConversation")
             {

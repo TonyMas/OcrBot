@@ -22,25 +22,41 @@ namespace OCRBot
 
         public void RecognizeAttachments(IList<Attachment> attachments)
         {
-            var i = 1;
             foreach (Attachment a in attachments)
             {
+                var attachName = getFileNameFromUrl(a.ContentUrl);
                 if (!a.ContentType.StartsWith("image/"))
                 {
-                    Message replyMessage = messageSender.CreateMessage($"Wrong type of file {i}: {a.ContentType}");
+                    Message replyMessage = messageSender.CreateMessage($"Wrong type of file **{attachName}**: *{a.ContentType}*");
                     messageSender.SendMessage(replyMessage);
                 }
                 else
                 {
-                    recognizeImage(a.ContentUrl, i);
+                    recognizeImage(a.ContentUrl, attachName);
                 }
-                i++;
             }
         }
 
-        private void recognizeImage(string contentUrl, int index)
+        private string getFileNameFromUrl(string contentUrl)
         {
-            messageSender.SendMessage($"Begin recognition of image {index}");
+            const string fileString = "?file=";
+            var fileIndex = contentUrl.IndexOf(fileString, StringComparison.InvariantCultureIgnoreCase);
+            if ( fileIndex != -1 )
+            {
+                var result = contentUrl.Substring(fileIndex + fileString.Length);
+                if( result.Length > 0 )
+                {
+                    return result;
+                }
+            }
+            return "<unknown_file>";
+        }
+
+        private void recognizeImage(string contentUrl, string attachName)
+        {
+            messageSender.SendMessage($"Begin recognition of image **{attachName}**");
+
+            return;
 
             RestServiceClient restClient = new RestServiceClient();
             restClient.Proxy.Credentials = CredentialCache.DefaultCredentials;
@@ -58,12 +74,12 @@ namespace OCRBot
 
             task = waitForTask(restClient, task);
 
-            messageSender.SendMessage($"Image {index} recognition completed");
+            messageSender.SendMessage($"Image **{attachName}** recognition completed");
 
             for (int i = 0; i < settings.OutputFormats.Count; i++)
             {
                 string resultLnk = downloadResult(task.DownloadUrls[i], restClient);
-                var replyMessage = messageSender.CreateMessage($"Image {index} result: [link]({resultLnk})");
+                var replyMessage = messageSender.CreateMessage($"Image **{attachName}** result: [link]({resultLnk})");
                 messageSender.SendMessage(replyMessage);
             }
 

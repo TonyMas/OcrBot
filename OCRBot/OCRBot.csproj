@@ -131,6 +131,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Logic\Recognizer.cs" />
+    <Compile Include="App_Logic\UserData.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Messages\MessagesController.cs" />
     <Compile Include="Global.asax.cs">

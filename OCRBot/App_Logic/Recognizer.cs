@@ -13,12 +13,14 @@ namespace OCRBot
 {
     public class Recognizer
     {
-        public Recognizer(ReplyMessageSender _messageSender)
+        public Recognizer(ReplyMessageSender _messageSender, UserData _userData)
         {
             messageSender = _messageSender;
+            userData = _userData;
         }
 
-        private ReplyMessageSender messageSender { get; set; }
+        private ReplyMessageSender messageSender;
+        private UserData userData;
 
         public void RecognizeAttachments(IList<Attachment> attachments)
         {
@@ -54,6 +56,12 @@ namespace OCRBot
 
         private void recognizeImage(string contentUrl, string attachName)
         {
+            if( userData.RemainingPages <= 0 )
+            {
+                messageSender.SendMessage($"Sorry, you do not have any recognition pages in your account to recognize **{attachName}**.");
+                messageSender.SendMessage($"Send me serial number or promo code to add more pages to your account.");
+                return;
+            }
             messageSender.SendMessage($"Begin recognition of image **{attachName}**");
 
             RestServiceClient restClient = new RestServiceClient();
@@ -72,14 +80,23 @@ namespace OCRBot
 
             task = waitForTask(restClient, task);
 
-            messageSender.SendMessage($"Image **{attachName}** recognition completed");
-            messageSender.SendMessage($"{task.PagesCount} recognition pages used");
-
-            for (int i = 0; i < settings.OutputFormats.Count; i++)
+            if( userData.TrySubtractPages(task.PagesCount) )
             {
-                string resultLnk = downloadResult(task.DownloadUrls[i], restClient);
-                var replyMessage = messageSender.CreateMessage($"Image **{attachName}** result: [link]({resultLnk})");
-                messageSender.SendMessage(replyMessage);
+                messageSender.SendMessage($"Image **{attachName}** recognition completed");
+                messageSender.SendMessage($"{task.PagesCount} recognition pages used");
+
+                for (int i = 0; i < settings.OutputFormats.Count; i++)
+                {
+                    string resultLnk = downloadResult(task.DownloadUrls[i], restClient);
+                    var replyMessage = messageSender.CreateMessage($"Image **{attachName}** result: [link]({resultLnk})");
+                    messageSender.SendMessage(replyMessage);
+                }
+            }
+            else
+            {
+                messageSender.SendMessage($"Sorry, it seems that you do not have enough pages in your account to recognize **{attachName}**");
+                messageSender.SendMessage($"You have **{userData.RemainingPages}** remaining pages and **{attachName}** contains **{task.PagesCount}** pages.");
+                messageSender.SendMessage($"Send me serial number or promo code to add more pages to your account and then recognize your file again");
             }
 
             File.Delete(tmpFileName);

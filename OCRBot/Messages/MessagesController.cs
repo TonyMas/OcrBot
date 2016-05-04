@@ -1,6 +1,7 @@
 ﻿using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Utilities;
 using System;
+using System.Configuration;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -17,19 +18,21 @@ namespace OCRBot
         {
             if (message.Type == "Message")
             {
+                var userData = new UserData(message.From);
+
                 int attachCount = message.Attachments.Count;
                 if (attachCount != 0)
                 {
-                    ProcessAttachaments(message);
+                    ProcessAttachaments(message, userData);
                 }
 
                 if (message.Text.Equals( "Settings", StringComparison.InvariantCultureIgnoreCase ) )
                 {
-                    return talkAboutSettings(message);
+                    return talkAboutSettings(message, userData);
                 }
                 else if( message.Text.Equals("Info", StringComparison.InvariantCultureIgnoreCase) )
                 {
-                    return showUserInfo(message);
+                    return showUserInfo(message, userData);
                 }
                 else if (message.Text.Equals("Help", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -37,22 +40,69 @@ namespace OCRBot
                 }
                 else
                 {
-                    Message promoReply = tryProcessPromo(message);
-                    if( promoReply.Text.Length > 0 )
+                    Message replyMessage = message.CreateReplyMessage();
+
+                    if (tryProcessSerial(message, userData, replyMessage) ||
+                        tryProcessPromo(message, userData, replyMessage) ||
+                        tryProcessMaster(message, userData, replyMessage) )
                     {
-                        return promoReply;
+                        return replyMessage;
                     }
-                    if( message.Text.Length > 0)
-                    {
-                        return showHelpMessage(message, true);
-                    }
-                    return null;
+                    return showHelpMessage(message, true);
                 }
             }
             else
             {
                 return HandleSystemMessage(message);
             }
+        }
+
+        private bool tryProcessMaster(Message message, UserData userData, Message replyMessage)
+        {
+            if(message.Text.Equals(ConfigurationManager.AppSettings["MasterKey"], StringComparison.CurrentCulture))
+            {
+                if( userData.MasterMode )
+                {
+                    replyMessage.Text = $"You are already in master mode. What can I do for you.";
+                } else
+                {
+                    replyMessage.Text = $"Congrats! You are now in master mode! What can I do for you.";
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private bool tryProcessPromo(Message message, UserData userData, Message replyMessage)
+        {
+            return false;
+        }
+
+        private bool tryProcessSerial(Message message, UserData userData, Message replyMessage)
+        {
+            return false;
+        }
+
+        private Message showUserInfo(Message message, UserData userData)
+        {
+            return message.CreateReplyMessage(userData.UserInfoString());
+        }
+
+        private Message talkAboutSettings(Message message, UserData userData)
+        {
+            return message.CreateReplyMessage($"Recognition settings will be here");
+        }
+
+        private void ProcessAttachaments(Message message, UserData userData)
+        {
+            System.Threading.Timer timer = null;
+            timer = new System.Threading.Timer((obj) =>
+            {
+                var messageSender = new ReplyMessageSender(message);
+                var recognizer = new Recognizer(messageSender,userData);
+                recognizer.RecognizeAttachments(message.Attachments);
+                timer.Dispose();
+            }, null, 1, System.Threading.Timeout.Infinite);
         }
 
         private Message showHelpMessage(Message message, bool replyToUnknown)
@@ -66,34 +116,7 @@ namespace OCRBot
             }
             return message.CreateReplyMessage(helpText);
         }
-
-        private Message tryProcessPromo(Message message)
-        {
-            return message.CreateReplyMessage(); ;
-        }
-
-        private Message showUserInfo(Message message)
-        {
-            return message.CreateReplyMessage($"User info will be here");
-        }
-
-        private Message talkAboutSettings(Message message)
-        {
-            return message.CreateReplyMessage($"Recognition settings will be here");
-        }
-
-        private void ProcessAttachaments(Message message)
-        {
-            System.Threading.Timer timer = null;
-            timer = new System.Threading.Timer((obj) =>
-            {
-                var messageSender = new ReplyMessageSender(message);
-                var recognizer = new Recognizer(messageSender);
-                recognizer.RecognizeAttachments(message.Attachments);
-                timer.Dispose();
-            }, null, 1, System.Threading.Timeout.Infinite);
-        }
-
+        
         private Message HandleSystemMessage(Message message)
         {
             if (message.Type == "Ping")
